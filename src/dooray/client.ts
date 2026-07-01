@@ -571,7 +571,9 @@ export class DoorayClient {
 
   /**
    * 파일 바이트를 내려받는다. 첫 요청은 `redirect:"manual"` 로 307 을 받고,
-   * Location 이 가리키는 실제 URL 에 인증 헤더를 붙여 다시 받는다.
+   * Location 이 가리키는 실제 URL 에 재요청한다.
+   * same-scope(동일 호스트 또는 동일 등록가능 도메인) 일 때만 인증 헤더를 재부착한다.
+   * 외부 호스트로 리다이렉트되면 Authorization 헤더 없이 재요청해 토큰 유출을 방지한다.
    */
   async #downloadFile(
     basePath: string,
@@ -584,12 +586,18 @@ export class DoorayClient {
         redirect: "manual",
         headers: this.#authHeader(),
       });
-      const response = isRedirect(first.status)
-        ? await fetch(redirectLocation(first), {
-            method: "GET",
-            headers: this.#authHeader(),
-          })
-        : first;
+      let response: Response;
+      if (isRedirect(first.status)) {
+        const location = redirectLocation(first);
+        // 상대 Location 방어: fetch 에 전달할 URL 을 절대화한다.
+        const absLocation = new URL(location, this.#baseUrl).toString();
+        const headers = sameAuthScope(this.#baseUrl, location)
+          ? this.#authHeader()
+          : undefined;
+        response = await fetch(absLocation, { method: "GET", headers });
+      } else {
+        response = first;
+      }
       await this.#ensureOk(response);
       const buffer = Buffer.from(await response.arrayBuffer());
       const fileName = parseContentDisposition(
@@ -603,6 +611,7 @@ export class DoorayClient {
   /**
    * 로컬 파일을 multipart 로 업로드한다. 307 이면 Location 으로 재-POST 하되
    * FormData 는 스트림이 소진되므로 매번 새로 빌드한다. result.id 를 돌려준다.
+   * same-scope 일 때만 인증 헤더를 재부착한다(외부 호스트 토큰 유출 방지).
    */
   async #uploadFile(basePath: string, filePath: string): Promise<string> {
     return this.#send(async () => {
@@ -615,13 +624,22 @@ export class DoorayClient {
         headers: this.#authHeader(),
         body: buildForm(bytes, fileName),
       });
-      const response = isRedirect(first.status)
-        ? await fetch(redirectLocation(first), {
-            method: "POST",
-            headers: this.#authHeader(),
-            body: buildForm(bytes, fileName),
-          })
-        : first;
+      let response: Response;
+      if (isRedirect(first.status)) {
+        const location = redirectLocation(first);
+        // 상대 Location 방어: fetch 에 전달할 URL 을 절대화한다.
+        const absLocation = new URL(location, this.#baseUrl).toString();
+        const headers = sameAuthScope(this.#baseUrl, location)
+          ? this.#authHeader()
+          : undefined;
+        response = await fetch(absLocation, {
+          method: "POST",
+          headers,
+          body: buildForm(bytes, fileName),
+        });
+      } else {
+        response = first;
+      }
       await this.#ensureOk(response);
       const body = (await response.json()) as DoorayResponse<{ id: string }>;
       return body.result.id;
@@ -699,6 +717,53 @@ function redirectLocation(response: Response): string {
     );
   }
   return location;
+}
+
+/**
+ * 리다이렉트 Location 이 baseUrl 과 같은 인증 스코프인지 판정한다.
+ * 같은 스코프이면 Authorization 헤더를 재부착해도 안전하다.
+ *
+ * 판정 규칙(보수적 — 기능 안 깨지게):
+ * 1. `location` 을 `new URL(location, baseUrl)` 로 파싱(상대 경로 resolve).
+ *    baseUrl 도 `new URL(baseUrl)` 로 파싱. 실패 시 false.
+ * 2. hostname 이 정확히 같으면 true.
+ * 3. 두 hostname 의 마지막 2개 라벨(등록가능 도메인 근사)이 같으면 true.
+ *    예: api.dooray.com vs files.dooray.com → dooray.com 공유 → true.
+ *
+ * 한계(다중 라벨 TLD):
+ * - co.kr 처럼 라벨이 2개인 TLD 를 사용하면 마지막 2라벨이 TLD 와 일치,
+ *   실제로는 다른 등록가능 도메인이어도 true 를 반환할 수 있다.
+ * - 부정확 시 방향은 "넓게 허용"이지만, Dooray 의 실제 리다이렉트는
+ *   *.dooray.com 서브도메인이므로 이 근사로 충분하다.
+ * - 공개 접미사 목록(PSL) 없이는 정확한 판정 불가 — 의도적 단순화.
+ */
+export function sameAuthScope(baseUrl: string, location: string): boolean {
+  let baseHostname: string;
+  let locHostname: string;
+  try {
+    baseHostname = new URL(baseUrl).hostname;
+    locHostname = new URL(location, baseUrl).hostname;
+  } catch {
+    return false;
+  }
+  if (baseHostname === locHostname) return true;
+  // 마지막 2개 라벨 비교(등록가능 도메인 근사)
+  const baseLabels = baseHostname.split(".");
+  const locLabels = locHostname.split(".");
+  if (baseLabels.length < 2 || locLabels.length < 2) return false;
+  const baseTld = baseLabels[baseLabels.length - 1];
+  const baseSld = baseLabels[baseLabels.length - 2];
+  const locTld = locLabels[locLabels.length - 1];
+  const locSld = locLabels[locLabels.length - 2];
+  // noUncheckedIndexedAccess: 인덱스 접근 결과가 undefined 일 수 있으므로 방어
+  if (
+    baseTld === undefined ||
+    baseSld === undefined ||
+    locTld === undefined ||
+    locSld === undefined
+  )
+    return false;
+  return baseTld === locTld && baseSld === locSld;
 }
 
 /**
