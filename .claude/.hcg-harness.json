@@ -1,0 +1,10 @@
+{
+  "profile": "cli-manual",
+  "profileVersion": "0.0.0",
+  "harnessVersion": "0.1.0",
+  "bootstrappedAt": "2026-07-01T00:00:00.000Z",
+  "upgradedAt": null,
+  "install": "manual-copy",
+  "note": "dooray-agent(TS ESM CLI)에 하네스를 수동 적용. hcg 프로파일(Next.js)이 아니라 CLI 에 맞게 적응했으므로 /hcg-upgrade 재렌더는 쓰지 않는다 — .claude 레이어는 손으로 유지한다.",
+  "choices": { "projectName": "dooray-agent", "appDir": "." }
+}

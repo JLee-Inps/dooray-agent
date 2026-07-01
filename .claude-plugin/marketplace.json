@@ -1,0 +1,11 @@
+{
+  "name": "dooray-agent-marketplace",
+  "owner": { "name": "JLee-Inps" },
+  "plugins": [
+    {
+      "name": "dooray-agent",
+      "source": "./",
+      "description": "NHN Dooray 문서(위키·업무·캘린더·메일)를 자동으로 읽고 쓰는 CLI(dra) 통합 스킬 + 슬래시 명령."
+    }
+  ]
+}

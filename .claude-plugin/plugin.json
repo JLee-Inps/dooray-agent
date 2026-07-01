@@ -1,0 +1,9 @@
+{
+  "name": "dooray-agent",
+  "version": "0.1.0",
+  "description": "Claude Code 에서 NHN Dooray 문서(위키·업무·캘린더·메일 등)를 자동으로 읽고 쓰는 CLI 통합. dra CLI 를 구동하는 스킬 + /dooray 슬래시 명령을 제공한다.",
+  "author": { "name": "JLee-Inps" },
+  "homepage": "https://github.com/JLee-Inps/dooray-agent",
+  "license": "MIT",
+  "keywords": ["dooray", "cli", "agent", "automation", "wiki", "task"]
+}
