@@ -9,7 +9,7 @@ description: Dooray 문서(위키·업무·캘린더 등)를 dra CLI 로 자동 
 
 ## 전제 (최초 1회)
 
-- CLI 설치: `npm i -g dooray-agent`
+- CLI 설치: `npm i -g dooray-agent` (npm 미배포 시 소스 설치: `git clone https://github.com/JLee-Inps/dooray-agent.git && cd dooray-agent && pnpm install && pnpm build && npm link`)
 - 인증: `dra login --token <DOORAY_API_TOKEN> --base-url https://api.dooray.com`
 - 확인: `dra whoami --json`
 
