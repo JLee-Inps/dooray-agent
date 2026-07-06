@@ -95,6 +95,78 @@ dra wiki page edit <project> <pageId> --body "$BODY
 - **이름·캐시 해석** — 프로젝트 코드·워크플로 이름 등을 자동 해석(파일 캐시로 반복 호출 최소화).
 - 종료 코드: 0 성공 · 1 API · 2 인증 · 3 사용법 · 4 설정.
 
+## MCP 서버
+
+`dooray-agent-mcp` 는 Claude Desktop · Claude Code 에서 Dooray 를 직접 도구로 쓸 수 있게 하는
+로컬 **stdio MCP 서버**다. CLI(`dra`)와 같은 패키지·같은 코어를 공유하며, `dra login` 한 번으로
+인증을 공유한다.
+
+### 선행 조건
+
+1. CLI 설치 (위 「설치」 참조)
+2. 인증:
+   ```bash
+   dra login --token <DOORAY_API_TOKEN> --base-url https://api.dooray.com
+   ```
+
+### Claude Desktop 에 연결
+
+`~/.config/claude/claude_desktop_config.json` 에 추가한다 (전역 설치 시):
+
+```json
+{
+  "mcpServers": {
+    "dooray": {
+      "command": "dooray-agent-mcp"
+    }
+  }
+}
+```
+
+전역 설치하지 않은 경우(소스에서 빌드) 절대 경로 또는 `node dist/mcp.js` 사용:
+
+```json
+{
+  "mcpServers": {
+    "dooray": {
+      "command": "node",
+      "args": ["/절대/경로/dooray-agent/dist/mcp.js"]
+    }
+  }
+}
+```
+
+### Claude Code 에 연결
+
+```bash
+claude mcp add dooray -- dooray-agent-mcp
+```
+
+### 제공 툴 (18개)
+
+| 툴 | 기능 |
+| --- | --- |
+| `dooray_whoami` | 로그인 사용자 정보 조회 |
+| `dooray_project_list` | 프로젝트 목록 |
+| `dooray_member_search` | 멤버 검색 (email/name) |
+| `dooray_post_list` | 업무 목록 (최신순, 페이지네이션) |
+| `dooray_post_get` | 업무 상세·본문 조회 |
+| `dooray_post_create` | 업무 생성 |
+| `dooray_post_edit` | 업무 수정 (부분 수정) |
+| `dooray_post_done` | 업무 완료 처리 |
+| `dooray_post_workflow` | 업무 워크플로 전이 |
+| `dooray_post_search` | 업무 키워드 검색 |
+| `dooray_post_comment_list` | 업무 댓글 목록 |
+| `dooray_post_comment_add` | 업무 댓글 추가 |
+| `dooray_wiki_pages` | 위키 페이지 목록 |
+| `dooray_wiki_page_get` | 위키 페이지 상세·본문 조회 |
+| `dooray_wiki_page_create` | 위키 페이지 생성 |
+| `dooray_wiki_page_edit` | 위키 페이지 수정 (부분 수정) |
+| `dooray_wiki_page_delete` | 위키 페이지 삭제 |
+| `dooray_wiki_comment_add` | 위키 페이지 댓글 추가 |
+
+툴 명세 전체는 `contracts/mcp-tools.md` 를 참조한다.
+
 ## 에이전트 스킬
 
 Claude Code 용 사용 지침은 `skills/dooray-agent/SKILL.md` 를 참고한다.

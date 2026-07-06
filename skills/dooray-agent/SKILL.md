@@ -111,6 +111,19 @@ dra project create --code my-team --description "팀 프로젝트" --json
 
 - `mail send`·`calendar create`·`project create` 는 쓰기 명령이라 `--json` 이 `{ ...id, status }` 를 돌려준다.
 
+## MCP 서버 사용 경로 (Claude Desktop · Claude Code)
+
+`dooray-agent-mcp` 는 `dra` CLI 와 같은 코어를 공유하는 로컬 **stdio MCP 서버**다.
+Claude Desktop 또는 Claude Code 에 연결하면 위 CLI 명령을 도구 호출로 대체할 수 있다.
+
+- **선행**: `dra login` 1회 (토큰은 `~/.dooray-agent/config.json` 에 저장, 두 경로가 공유)
+- **Claude Code**: `claude mcp add dooray -- dooray-agent-mcp`
+- **Claude Desktop**: `claude_desktop_config.json` 에 `{"mcpServers":{"dooray":{"command":"dooray-agent-mcp"}}}`
+- **제공 툴**: 18개 (`dooray_whoami`, `dooray_post_*`, `dooray_wiki_*`, `dooray_member_search`, `dooray_project_list`)
+- **툴 명세 전체(인자·반환·에러 스키마)**: `contracts/mcp-tools.md`
+
+MCP 경로에서도 부분 수정·이름 해석·에러 코드 보존 등 CLI 와 동일한 도메인 규칙이 적용된다.
+
 ## 판단 기준
 
 - 결과를 다음 액션에 쓰려면 반드시 `--json`.

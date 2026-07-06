@@ -18,3 +18,9 @@
 - 종료 코드는 `ExitCode` 상수만 사용(매직 넘버 금지).
 - 페이지 조회는 `Page<T> = { items, totalCount }`(`src/dooray/client.ts`).
 - `--json` 출력의 리소스 형태는 API 원자료(`result`)를 그대로 유지한다.
+
+## MCP 도구 표면 (재사용 note)
+
+- MCP 도구 I/O 는 신규 타입 SSOT 를 만들지 않는다 — 반환은 `src/dooray/types.ts` 리소스 타입 + 쓰기 `{ ...id, status }` 봉투를 재사용하고, 입력만 `src/mcp/tools.ts` 의 zod raw shape 로 선언한다.
+- `AppError` → MCP tool error(`isError` content, `code` 보존) 매핑은 `src/mcp/serve.ts` `runTool` 단일 지점. 새 에러 타입 도입 금지(불변 규약 유지).
+- 표면 상세는 `contracts/mcp-tools.md` 참조.
