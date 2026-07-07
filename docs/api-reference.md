@@ -53,6 +53,42 @@ dooray-agent 가 래핑하는 Dooray REST API 와 명령 → 엔드포인트 대
 
 wikiId 는 프로젝트에 연결된 위키(`GET /wiki/v1/wikis` 에서 `project.id` 매칭)로 해석한다.
 
+## 캘린더
+
+| 명령              | 메서드·경로                                                              |
+| ----------------- | ------------------------------------------------------------------------ |
+| `calendar list`   | `GET /calendar/v1/calendars`                                             |
+| `calendar events` | `GET /calendar/v1/calendars/*/events` (`timeMin`·`timeMax` RFC3339, `*`=전체 내 캘린더) |
+| `calendar create` | `POST /calendar/v1/calendars/{calendarId}/events`                        |
+| `calendar get`    | `GET .../calendars/{calendarId}/events/{eventId}`                        |
+| `calendar edit`   | `PUT .../calendars/{calendarId}/events/{eventId}` (부분수정 read-merge)  |
+| `calendar delete` | `DELETE .../calendars/{calendarId}/events/{eventId}`                     |
+
+이벤트 본문은 `{ mimeType:"text/x-markdown", content }`. 종일 일정은 `wholeDayFlag:true`.
+
+## 메일 (IMAP/SMTP — REST 아님)
+
+메일은 Dooray REST 가 아니라 표준 IMAP/SMTP 로 동작한다(`src/dooray/mail.ts`). `token` 과 별개로 `imapHost`/`smtpHost`/`mailUser`/`mailPassword` config 가 필요하다.
+
+| 명령        | 프로토콜·동작                                                                  |
+| ----------- | ----------------------------------------------------------------------------- |
+| `mail list` | IMAP(993/TLS) — mailbox 최근 N통 헤더를 최신순(`ImapFlow.fetch` envelope)      |
+| `mail get`  | IMAP — UID 로 단일 메일 fetch 후 `mailparser`(`simpleParser`)로 본문 파싱      |
+| `mail send` | SMTP(465/TLS) — `nodemailer` 발송, `{ messageId, status:"sent" }` 반환         |
+
+## 메신저·드라이브 (실험적 — 미검증 가정)
+
+아래 엔드포인트는 공식 API 로 대조되지 않은 **가정**이다(`src/dooray/client.ts` 의 `TODO(verify)` 마커). 경로·응답 형태가 실제와 다를 수 있어 자동화 의존 전 검증이 필요하다.
+
+| 명령                 | 메서드·경로 (미검증 가정)                                       |
+| -------------------- | -------------------------------------------------------------- |
+| `messenger channels` | `GET /messenger/v1/channels`                                   |
+| `messenger send`     | `POST /messenger/v1/channels/{channelId}/logs` (`{text}` → `{messageId, status:"sent"}`) |
+| `drive list`         | `GET /drive/v1/drives`                                         |
+| `drive files`        | `GET /drive/v1/drives/{driveId}/files`                         |
+| `drive download`     | `.../drives/{driveId}/files/{fileId}` (307 가정, 기존 다운로드 경로 재사용) |
+| `drive upload`       | `POST .../drives/{driveId}/files` (307 multipart 가정)         |
+
 ## 파일 307 처리
 
 1. `redirect:"manual"` 로 첫 요청 → 307/308 이면 `Location` 추출.

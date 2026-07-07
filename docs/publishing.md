@@ -23,7 +23,7 @@ node_modules/.bin/tsup                # dist 최신 빌드
 npm pack --dry-run                    # tarball 내용·크기 확인 (.map 없어야, dist/*.js 있어야)
 ```
 
-`npm pack --dry-run` 기대치: 6 파일(LICENSE·README·dist/cli.js·dist/mcp.js·package.json·skills/SKILL.md), `.map` 없음.
+`npm pack --dry-run` 기대치: 6 파일(LICENSE·README·dist/cli.js·dist/mcp.js·package.json·skills/dooray-agent/SKILL.md), `.map` 없음.
 
 ## 배포
 

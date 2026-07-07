@@ -105,7 +105,7 @@ Claude Code 는 한 줄: `claude mcp add dooray -- node /절대/경로/dooray-ag
 | 툴은 뜨는데 첫 호출이 `code:4` | 미로그인(설정 파일 없음) | `dra login` 먼저. `dra whoami` 로 확인 |
 | 첫 호출이 `code:2` | 토큰 거부(401/403) — 만료·오타·권한 | 토큰 재발급 후 `dra login` 재실행 |
 | 메일 툴만 `code:4` | IMAP/SMTP 미설정 (login 은 됨) | §1 ③ `config set` |
-| 서버가 조용히 죽음 | Node 버전/빌드 누락 | `node -v`(≥18), `npm run build` 재실행, §5 smoke |
+| 서버가 조용히 죽음 | Node 버전/빌드 누락 | `node -v`(≥20), `npm run build` 재실행, §5 smoke |
 
 `code` 규약: **1** API · **2** 인증 · **3** 사용법 · **4** 설정. CLI `--json` 에러와 동일 스키마.
 
@@ -131,4 +131,4 @@ s.kill(); process.exit(0);
 ```
 
 빈 `HOME`(설정 없음)으로 돌려도 서버는 기동하고 첫 툴 호출만 `code:4` 로 응답한다 — 이것이 정상이다.
-정식 유닛/통합 커버리지는 `pnpm test`(192 tests, `src/mcp/*.test.ts`).
+정식 유닛/통합 커버리지는 `pnpm test`(232 tests — `#collect` under-fetch 한계는 `it.fails` 로 명시).

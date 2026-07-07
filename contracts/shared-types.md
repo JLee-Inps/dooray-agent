@@ -6,8 +6,8 @@
 
 - **API 타입**: `src/dooray/types.ts`
   - 응답 봉투 `DoorayResponse<T>` — 모든 client 메서드가 통과.
-  - 리소스: `Me`·`Member`·`Project`·`Post`·`WikiPage`·`PostComment`·`WikiComment`·`Tag`·`Milestone`·`Workflow`·`MemberGroup`·`Template`·`FileMeta`.
-  - 요청 바디: `PostInput`·`WikiPageInput`·`CommentInput`·`WikiCommentInput`.
+  - 리소스: `Me`·`Member`·`Project`·`Post`·`WikiPage`·`PostComment`·`WikiComment`·`Tag`·`Milestone`·`Workflow`·`MemberGroup`·`Template`·`FileMeta`·`Calendar`·`CalendarEvent`.
+  - 요청 바디: `PostInput`·`WikiPageInput`·`CommentInput`·`WikiCommentInput`·`CalendarEventInput`.
 - **출력 모드 타입**: `src/core/output.ts` `OutputMode`(`{ json?, quiet? }`).
 - **인증 정보**: `src/core/config.ts` `Credentials`.
 - **에러/종료 코드**: `src/core/errors.ts` `AppError` + `ExitCode`.
