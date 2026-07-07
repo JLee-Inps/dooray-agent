@@ -101,6 +101,8 @@ dra wiki page edit <project> <pageId> --body "$BODY
 로컬 **stdio MCP 서버**다. CLI(`dra`)와 같은 패키지·같은 코어를 공유하며, `dra login` 한 번으로
 인증을 공유한다.
 
+> 설치→등록→"대화 문서화·일정 등록"까지의 핸즈온 레시피와 자가진단은 `docs/mcp-quickstart.md` 참조.
+
 ### 선행 조건
 
 1. CLI 설치 (위 「설치」 참조)
