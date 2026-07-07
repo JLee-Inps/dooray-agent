@@ -6,5 +6,5 @@
   "upgradedAt": "2026-07-07T00:00:00.000Z",
   "install": "manual-copy",
   "note": "dooray-agent(TS ESM CLI)에 하네스를 수동 적용. hcg 프로파일(Next.js)이 아니라 CLI 에 맞게 적응했으므로 /hcg-upgrade 재렌더는 쓰지 않는다 — .claude 레이어는 손으로 유지한다. 2026-07-07 포터블 선택 병합(upstream HEAD 75708e3): CLAUDE-core(①.5 설계 승인 체크포인트 신설)·pipeline-phase·codex-review 갱신. 스택 전용 스킬(db/backend/frontend/ui-conventions)·훅 런처(hooks.json/run-*.mjs)는 미도입(프로젝트 고유 레이어·settings.json 직배선 유지). contract-authoring·verification-ladder 는 실질 변경 없어 스킵.",
-  "choices": { "projectName": "dooray-agent", "appDir": "." }
+  "choices": { "projectName": "dooray-agent", "appDir": ".", "codex": false }
 }
