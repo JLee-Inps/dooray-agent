@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Command } from "commander";
 import { createClient } from "../core/session";
 import type { DoorayClient } from "../dooray/client";
-import type { PostUserRef } from "../dooray/types";
+import type { Post, PostUserRef } from "../dooray/types";
 import { render, reportWrite, type OutputMode } from "../core/output";
 import { summarizeDownloads, type DownloadOutcome } from "../core/download";
 import { startSpinner, stopSpinner } from "../core/spinner";
@@ -67,6 +67,37 @@ async function resolveExtras(
     if (ccIds.length > 0) extras.users.cc = ccIds.map(toRef);
   }
   return extras;
+}
+
+/**
+ * post edit 의 부가 필드(tags/users) 병합. 필드별 독립적으로 지정 유무를 따진다:
+ * 지정했으면 새로 해석된 값(resolved), 아니면 현재 값(current)을 재공급한다.
+ * 순수 함수 — GET 타입(Post)만 의존, client 호출 없음.
+ */
+export function mergePostExtras(
+  current: Post,
+  opts: ExtraOpts,
+  resolved: { users?: { to?: PostUserRef[]; cc?: PostUserRef[] }; tagIdList?: string[] },
+): { users?: { to?: PostUserRef[]; cc?: PostUserRef[] }; tagIdList?: string[] } {
+  const merged: {
+    users?: { to?: PostUserRef[]; cc?: PostUserRef[] };
+    tagIdList?: string[];
+  } = {};
+
+  // GET 은 tags:[{id}], PUT 은 tagIdList:[id] — 재공급 시 id 만 매핑한다.
+  const tagIdList =
+    opts.tag.length > 0 ? resolved.tagIdList : current.tags?.map((t) => t.id);
+  if (tagIdList && tagIdList.length > 0) merged.tagIdList = tagIdList;
+
+  const to = opts.to.length > 0 ? resolved.users?.to : current.users?.to;
+  const cc = opts.cc.length > 0 ? resolved.users?.cc : current.users?.cc;
+  if ((to && to.length > 0) || (cc && cc.length > 0)) {
+    merged.users = {};
+    if (to && to.length > 0) merged.users.to = to;
+    if (cc && cc.length > 0) merged.users.cc = cc;
+  }
+
+  return merged;
 }
 
 /** 업무 명령 그룹: list, get, create, edit, done, workflow, search, comment. */
@@ -208,7 +239,8 @@ export function postCommand(): Command {
         const current = await client.getPost(projectId, postId);
         const subject = opts.title ?? current.subject;
         const content = opts.body ?? current.body?.content ?? "";
-        const extras = await resolveExtras(client, projectId, opts);
+        const resolved = await resolveExtras(client, projectId, opts);
+        const extras = mergePostExtras(current, opts, resolved);
         await client.updatePost(projectId, postId, {
           subject,
           body: { mimeType: MARKDOWN, content },

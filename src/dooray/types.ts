@@ -46,6 +46,15 @@ export interface Post {
   subject: string;
   body?: PostBody;
   workflowClass?: string;
+  // TODO(verify): GET 응답의 실제 형태 미확인. PUT 입력(PostInput.users)과 동형으로
+  // to/cc 담당자를 돌려준다고 가정한다(부분수정 read-back 용). GET 은 from 등 추가
+  // 키를 더 가질 수 있으나 edit 은 to/cc 만 재공급한다. 가정이 틀리면 이 필드가
+  // undefined 로 남아 read-back 이 skip 될 뿐 — 현행과 동일(무해).
+  users?: { to?: PostUserRef[]; cc?: PostUserRef[] };
+  // TODO(verify): GET 은 `tags:[{id}]` 형태, PUT 은 `tagIdList:[id]` 형태로 서로
+  // 다르다고 가정한다(Dooray 관례) — edit 에서 read-back 시 `tags.map(t => t.id)`
+  // 로 매핑해 tagIdList 를 재구성한다.
+  tags?: { id: string }[];
 }
 
 export interface PostComment {
@@ -119,6 +128,13 @@ export interface CalendarEvent {
   startedAt?: string;
   endedAt?: string;
   calendarId?: string;
+  // TODO(verify): GET 응답의 실제 형태 미확인 — PUT 입력(CalendarEventInput)과
+  // 동형으로 body/wholeDayFlag/users(참석자)를 돌려준다고 가정한다(부분수정
+  // read-back 용). 가정이 틀리면 이 필드들이 undefined 로 남아 read-back 이
+  // skip 될 뿐 — 현행과 동일(무해).
+  body?: PostBody;
+  wholeDayFlag?: boolean;
+  users?: { to?: PostUserRef[] };
 }
 
 // ── 메신저 (실험적) ──────────────────────────────────────

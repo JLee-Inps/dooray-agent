@@ -328,6 +328,53 @@ describe("mcp/tools 핸들러 단위 테스트", () => {
         }),
       );
     });
+
+    it("getPost 가 tags/users 를 돌려주면 title 만 지정해도 tagIdList/users 가 read-back 재공급된다 (핵심 회귀)", async () => {
+      const client = makeMockClient();
+      const current: Post = {
+        id: RAW_POST_ID,
+        number: 1,
+        subject: "원래 제목",
+        body: { mimeType: "text/x-markdown", content: "원래 본문" },
+        tags: [{ id: "tag-1" }, { id: "tag-2" }],
+        users: {
+          to: [{ type: "member", member: { organizationMemberId: "m-to" } }],
+          cc: [{ type: "member", member: { organizationMemberId: "m-cc" } }],
+        },
+      };
+      (client.getPost as ReturnType<typeof vi.fn>).mockResolvedValue(current);
+      await findTool("dooray_post_edit").handler(makeCtx(client), {
+        project: RAW_PROJECT,
+        postId: RAW_POST_ID,
+        title: "새 제목",
+      });
+      expect(client.updatePost).toHaveBeenCalledWith(
+        RAW_PROJECT,
+        RAW_POST_ID,
+        expect.objectContaining({
+          tagIdList: ["tag-1", "tag-2"],
+          users: current.users,
+        }),
+      );
+    });
+
+    it("getPost 가 tags/users 를 돌려주지 않으면 updatePost payload 에 해당 키가 없다 (anti-overfit)", async () => {
+      const client = makeMockClient();
+      (client.getPost as ReturnType<typeof vi.fn>).mockResolvedValue({
+        id: RAW_POST_ID,
+        number: 1,
+        subject: "s",
+      });
+      await findTool("dooray_post_edit").handler(makeCtx(client), {
+        project: RAW_PROJECT,
+        postId: RAW_POST_ID,
+        title: "t",
+      });
+      const callArg = (client.updatePost as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[2] as Record<string, unknown>;
+      expect(callArg).not.toHaveProperty("tagIdList");
+      expect(callArg).not.toHaveProperty("users");
+    });
   });
 
   // ── 8. dooray_post_done ─────────────────────────────────────────────
@@ -829,7 +876,34 @@ describe("mcp/tools 핸들러 단위 테스트", () => {
       );
     });
 
-    it("body 미지정 시 updateEvent 에 body 키 없음 (anti-overfit)", async () => {
+    // 반전 갱신(핵심 회귀): 이 테스트는 원래 "body 미지정 시 body 키 없음"을
+    // 무조건 단언해 현행 버그 동작(current.body 가 있어도 소실)을 고정하고
+    // 있었다. read-merge-resupply 도입 후에는 current.body 가 있으면 재공급
+    // 되어야 하므로 반전한다 — current.body 없을 때만 키가 생략된다.
+    it("current.body 가 있고 body 미지정 시 body 키에 current.body 가 재공급된다 (반전 갱신 — 핵심 회귀)", async () => {
+      const client = makeMockClient();
+      const withBody: CalendarEvent = {
+        ...CURRENT_EVENT,
+        body: { mimeType: "text/x-markdown", content: "기존 안건" },
+      };
+      (client.getEvent as ReturnType<typeof vi.fn>).mockResolvedValue(
+        withBody,
+      );
+      await findTool("dooray_calendar_event_edit").handler(makeCtx(client), {
+        calendar: RAW_CALENDAR_ID,
+        eventId: RAW_EVENT_ID,
+        subject: "새 제목",
+      });
+      expect(client.updateEvent).toHaveBeenCalledWith(
+        RAW_CALENDAR_ID,
+        RAW_EVENT_ID,
+        expect.objectContaining({
+          body: expect.objectContaining({ content: "기존 안건" }),
+        }),
+      );
+    });
+
+    it("current.body 가 없고 body 미지정 시 updateEvent 에 body 키 없음 (anti-overfit)", async () => {
       const client = makeMockClient();
       (client.getEvent as ReturnType<typeof vi.fn>).mockResolvedValue(
         CURRENT_EVENT,
@@ -842,6 +916,33 @@ describe("mcp/tools 핸들러 단위 테스트", () => {
       const callArg = (client.updateEvent as ReturnType<typeof vi.fn>).mock
         .calls[0]?.[2] as Record<string, unknown>;
       expect(callArg).not.toHaveProperty("body");
+    });
+
+    it("current.wholeDayFlag/users(참석자)는 edit 옵션이 없어도 무조건 read-back 재공급된다", async () => {
+      const client = makeMockClient();
+      const withExtras: CalendarEvent = {
+        ...CURRENT_EVENT,
+        wholeDayFlag: true,
+        users: {
+          to: [{ type: "member", member: { organizationMemberId: "m1" } }],
+        },
+      };
+      (client.getEvent as ReturnType<typeof vi.fn>).mockResolvedValue(
+        withExtras,
+      );
+      await findTool("dooray_calendar_event_edit").handler(makeCtx(client), {
+        calendar: RAW_CALENDAR_ID,
+        eventId: RAW_EVENT_ID,
+        subject: "새 제목",
+      });
+      expect(client.updateEvent).toHaveBeenCalledWith(
+        RAW_CALENDAR_ID,
+        RAW_EVENT_ID,
+        expect.objectContaining({
+          wholeDayFlag: true,
+          users: withExtras.users,
+        }),
+      );
     });
 
     it("startedAt/endedAt 가 undefined 인 경우 빈 문자열로 공급 (updateEvent 필수 인자)", async () => {

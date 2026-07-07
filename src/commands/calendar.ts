@@ -5,6 +5,7 @@ import { Command } from "commander";
 import { createClient } from "../core/session";
 import { render, reportWrite, type OutputMode } from "../core/output";
 import { startSpinner, stopSpinner } from "../core/spinner";
+import type { CalendarEvent, CalendarEventInput } from "../dooray/types";
 
 const MARKDOWN = "text/x-markdown";
 
@@ -13,6 +14,32 @@ function defaultRange(): { from: string; to: string } {
   const now = new Date();
   const week = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   return { from: now.toISOString(), to: week.toISOString() };
+}
+
+/**
+ * calendar event edit 필드 병합. 미지정 필드는 현재 값(current)을 재공급한다.
+ * body 는 지정 시에만 새 마크다운으로 교체, 미지정이면 current.body 그대로.
+ * wholeDayFlag/users(참석자)는 edit 표면에 옵션이 없으므로 항상 current 재공급.
+ * 순수 함수 — GET 타입(CalendarEvent)만 의존, client 호출 없음.
+ */
+export function mergeEventFields(
+  current: CalendarEvent,
+  opts: { subject?: string; start?: string; end?: string; body?: string },
+): CalendarEventInput {
+  const merged: CalendarEventInput = {
+    subject: opts.subject ?? current.subject,
+    startedAt: opts.start ?? current.startedAt ?? "",
+    endedAt: opts.end ?? current.endedAt ?? "",
+  };
+  const body = opts.body
+    ? { mimeType: MARKDOWN, content: opts.body }
+    : current.body;
+  if (body) merged.body = body;
+  if (current.wholeDayFlag !== undefined) {
+    merged.wholeDayFlag = current.wholeDayFlag;
+  }
+  if (current.users) merged.users = current.users;
+  return merged;
 }
 
 /** 캘린더 명령 그룹: list, events, create. */
@@ -158,14 +185,11 @@ export function calendarCommand(): Command {
         const client = await createClient();
         startSpinner("이벤트 수정 중...");
         const current = await client.getEvent(opts.calendar, eventId);
-        await client.updateEvent(opts.calendar, eventId, {
-          subject: opts.subject ?? current.subject,
-          startedAt: opts.start ?? current.startedAt ?? "",
-          endedAt: opts.end ?? current.endedAt ?? "",
-          ...(opts.body
-            ? { body: { mimeType: MARKDOWN, content: opts.body } }
-            : {}),
-        });
+        await client.updateEvent(
+          opts.calendar,
+          eventId,
+          mergeEventFields(current, opts),
+        );
         stopSpinner();
         reportWrite(mode, {
           json: { eventId, status: "updated" },

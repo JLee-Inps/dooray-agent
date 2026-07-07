@@ -168,12 +168,18 @@ export const tools: ToolDef[] = [
       const client = await ctx.getClient();
       const pid = await resolveProjectId(client, project);
       const current = await client.getPost(pid, postId);
+      // 입력 표면에 tag/cc/to 가 없으므로 태그·담당자는 항상 current 를 read-back
+      // 재공급한다(GET tags:[{id}] → PUT tagIdList:[id] 매핑). milestone/workflow
+      // 는 보존 제외(known limitation — PUT 필드명 미확인).
+      const tagIdList = current.tags?.map((t) => t.id);
       await client.updatePost(pid, postId, {
         subject: title ?? current.subject,
         body: {
           mimeType: MARKDOWN,
           content: body ?? current.body?.content ?? "",
         },
+        ...(tagIdList && tagIdList.length > 0 ? { tagIdList } : {}),
+        ...(current.users ? { users: current.users } : {}),
       });
       return { postId, status: "updated" };
     },
@@ -520,11 +526,20 @@ export const tools: ToolDef[] = [
       };
       const client = await ctx.getClient();
       const current = await client.getEvent(calendar, eventId);
+      // 입력 표면에 wholeDayFlag/참석자 옵션이 없으므로 body(미지정 시)·
+      // wholeDayFlag·users 는 항상 current 를 read-back 재공급한다.
+      const bodyField = body
+        ? { mimeType: MARKDOWN, content: body }
+        : current.body;
       await client.updateEvent(calendar, eventId, {
         subject: subject ?? current.subject,
         startedAt: start ?? current.startedAt ?? "",
         endedAt: end ?? current.endedAt ?? "",
-        ...(body ? { body: { mimeType: MARKDOWN, content: body } } : {}),
+        ...(bodyField ? { body: bodyField } : {}),
+        ...(current.wholeDayFlag !== undefined
+          ? { wholeDayFlag: current.wholeDayFlag }
+          : {}),
+        ...(current.users ? { users: current.users } : {}),
       });
       return { eventId, status: "updated" };
     },
