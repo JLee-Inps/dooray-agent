@@ -246,31 +246,10 @@
 
     <section id="install">
       <p class="eyebrow">설치</p>
-      <h2>설치 — 용도별 택 1</h2>
-      <p>아래는 <b>순서가 아니라 선택지</b>다. npm 과 소스는 같은 결과의 두 대안이니 <b>하나만</b> 하면 되고, 플러그인은 Claude Code 편의 레이어라 선택이다. 요구사항은 <b>Node.js 20 이상</b>.</p>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>어떻게 쓰나</th><th>무엇을 설치</th></tr></thead>
-          <tbody>
-            <tr><td>터미널에서 <code>dra</code></td><td>npm 전역 설치 <span class="pill new">최소 구성</span></td></tr>
-            <tr><td>Claude Desktop 도구로</td><td>npm 전역 설치 → Desktop 에 <code>dooray-agent-mcp</code> 등록</td></tr>
-            <tr><td>Claude Code <code>/dooray</code>·스킬</td><td>플러그인 (+ CLI 선행)</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <h3>A · npm 전역 설치 <span class="pill new">권장</span></h3>
-      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> npm install -g dooray-agent</pre></div>
-      <p><code class="inl">dra</code> 는 <code class="inl">dooray-agent</code> 의 짧은 별칭이다. 로컬 MCP 서버 bin <code class="inl">dooray-agent-mcp</code> 도 함께 설치된다. <b>이 한 줄로 CLI + MCP 둘 다 준비된다.</b></p>
-      <h3>B · 소스에서 (개발·기여, A 의 대안)</h3>
-      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> git clone https://github.com/JLee-Inps/dooray-agent.git
-<span class="p">$</span> cd dooray-agent
-<span class="p">$</span> npm install <span class="c"># 의존성</span>
-<span class="p">$</span> npm run build <span class="c"># dist/cli.js + dist/mcp.js</span>
-<span class="p">$</span> npm link <span class="c"># 전역 링크</span></pre></div>
-      <h3>C · Claude Code 플러그인 (선택 · CLI 선행 필요)</h3>
-      <p>스킬 + <code class="inl">/dooray</code> 슬래시 명령을 얹는다. 플러그인은 <code class="inl">dra</code> 를 호출하므로 A 나 B 가 먼저 돼 있어야 한다.</p>
-      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> claude plugin marketplace add JLee-Inps/dooray-agent
-<span class="p">$</span> claude plugin install dooray-agent@dooray-agent-marketplace</pre></div>
+      <h2>설치</h2>
+      <p><b>요구사항:</b> Node.js 20 이상. 아래 <b>한 줄</b>이면 CLI(<code class="inl">dra</code>)와 로컬 MCP 서버 bin(<code class="inl">dooray-agent-mcp</code>)이 <b>둘 다</b> 설치된다.</p>
+      <div class="code"><span class="tab">shell — npm 전역 설치</span><pre><span class="p">$</span> npm install -g dooray-agent</pre></div>
+      <p><code class="inl">dra</code> 는 <code class="inl">dooray-agent</code> 의 짧은 별칭이다. Claude Desktop·Claude Code 에 도구로 연결하는 방법은 아래 <a href="#mcp">MCP 서버</a> 섹션을 참고한다.</p>
     </section>
 
     <section id="start">
