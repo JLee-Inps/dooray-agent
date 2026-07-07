@@ -21,6 +21,6 @@
 
 ## MCP 도구 표면 (재사용 note)
 
-- MCP 도구 I/O 는 신규 타입 SSOT 를 만들지 않는다 — 반환은 `src/dooray/types.ts` 리소스 타입 + 쓰기 `{ ...id, status }` 봉투를 재사용하고, 입력만 `src/mcp/tools.ts` 의 zod raw shape 로 선언한다.
+- MCP 도구 I/O 는 신규 타입 SSOT 를 만들지 않는다 — 반환은 `src/dooray/types.ts` 리소스 타입 + `src/dooray/mail.ts`(MailHeader/MailMessage) + 쓰기 `{ ...id, status }` 봉투를 재사용하고, 입력만 `src/mcp/tools.ts` 의 zod raw shape 로 선언한다.
 - `AppError` → MCP tool error(`isError` content, `code` 보존) 매핑은 `src/mcp/serve.ts` `runTool` 단일 지점. 새 에러 타입 도입 금지(불변 규약 유지).
 - 표면 상세는 `contracts/mcp-tools.md` 참조.

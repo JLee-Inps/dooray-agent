@@ -142,7 +142,7 @@ dra wiki page edit <project> <pageId> --body "$BODY
 claude mcp add dooray -- dooray-agent-mcp
 ```
 
-### 제공 툴 (18개)
+### 제공 툴 (27개)
 
 | 툴 | 기능 |
 | --- | --- |
@@ -164,6 +164,15 @@ claude mcp add dooray -- dooray-agent-mcp
 | `dooray_wiki_page_edit` | 위키 페이지 수정 (부분 수정) |
 | `dooray_wiki_page_delete` | 위키 페이지 삭제 |
 | `dooray_wiki_comment_add` | 위키 페이지 댓글 추가 |
+| `dooray_calendar_list` | 캘린더 목록 조회 |
+| `dooray_calendar_events` | 캘린더 이벤트 목록 (기본 오늘~+7일) |
+| `dooray_calendar_event_get` | 캘린더 이벤트 상세 조회 |
+| `dooray_calendar_event_create` | 캘린더 이벤트 생성 |
+| `dooray_calendar_event_edit` | 캘린더 이벤트 수정 (부분 수정) |
+| `dooray_calendar_event_delete` | 캘린더 이벤트 삭제 |
+| `dooray_mail_list` | 메일 목록 조회 (IMAP/SMTP 설정 필요) |
+| `dooray_mail_get` | 메일 상세 조회 (IMAP 설정 필요) |
+| `dooray_mail_send` | 메일 발송 — 외부 부작용, 되돌릴 수 없음 (SMTP 설정 필요) |
 
 툴 명세 전체는 `contracts/mcp-tools.md` 를 참조한다.
 
