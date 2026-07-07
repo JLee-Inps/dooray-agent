@@ -27,7 +27,7 @@
     "dooray-agent-mcp": "dist/mcp.js"
   },
   "files": [
-    "dist",
+    "dist/*.js",
     "skills",
     "README.md",
     "LICENSE"
@@ -37,7 +37,7 @@
   },
   "scripts": {
     "build": "tsup",
-    "prepublishOnly": "pnpm build",
+    "prepublishOnly": "npm run build",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
