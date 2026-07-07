@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dooray-agent — 사용법 &amp; 아키텍처</title>
+<meta name="description" content="터미널·Claude Code·Claude Desktop 에서 NHN Dooray 문서(위키·업무·캘린더·메일)를 자동화하는 CLI 와 로컬 MCP 서버. 설치·사용법·아키텍처 문서.">
+<style>
+  :root{
+    --paper:#f4f3ef; --surface:#ffffff; --surface-2:#faf9f6;
+    --ink:#17212e; --muted:#586576; --faint:#8b96a6;
+    --line:#e4e1d9; --line-strong:#d3cfc4;
+    --accent:#2b6ca3; --accent-deep:#1c4e79; --accent-tint:rgba(43,108,163,.08);
+    --term-bg:#131c28; --term-panel:#1b2735; --term-ink:#d8e0ec; --term-dim:#7a8aa0; --term-accent:#6db3e6;
+    --ok:#2f8a67; --ok-tint:rgba(47,138,103,.1);
+    --warn:#a9701f; --warn-tint:rgba(169,112,31,.11);
+    --sans:"Pretendard",ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --maxw:760px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.9em}
+  h1,h2,h3{text-wrap:balance;line-height:1.2}
+
+  /* ---- shell layout ---- */
+  .wrap{display:grid;grid-template-columns:1fr;max-width:1160px;margin:0 auto;padding:0 24px}
+  @media(min-width:1000px){
+    .wrap{grid-template-columns:220px minmax(0,1fr);gap:56px;padding:0 40px}
+  }
+
+  /* ---- top bar ---- */
+  .topbar{border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20;
+    background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(8px)}
+  .topbar-in{max-width:1160px;margin:0 auto;padding:14px 40px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{font-family:var(--mono);font-weight:600;font-size:.95rem;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+  .brand .sq{width:11px;height:11px;background:var(--accent);border-radius:2px;box-shadow:2px 2px 0 var(--accent-deep)}
+  .topbar-meta{font-family:var(--mono);font-size:.76rem;color:var(--faint);display:flex;gap:14px}
+  @media(max-width:620px){.topbar-in{padding:12px 20px}.topbar-meta{display:none}}
+
+  /* ---- TOC ---- */
+  nav.toc{display:none}
+  @media(min-width:1000px){
+    nav.toc{display:block;position:sticky;top:70px;align-self:start;height:max-content;padding-top:56px}
+    nav.toc ol{list-style:none;margin:0;padding:0;border-left:1px solid var(--line)}
+    nav.toc a{display:block;font-size:.82rem;color:var(--muted);padding:6px 0 6px 16px;margin-left:-1px;
+      border-left:2px solid transparent;line-height:1.4}
+    nav.toc a:hover{color:var(--ink);text-decoration:none;border-left-color:var(--line-strong)}
+    nav.toc .lbl{font-family:var(--mono);font-size:.68rem;letter-spacing:.13em;text-transform:uppercase;
+      color:var(--faint);padding:16px 0 6px 16px}
+    nav.toc ol+.lbl{padding-top:18px}
+    nav.toc > .lbl:first-child{padding-top:0}
+  }
+
+  main{padding-bottom:100px;min-width:0}
+  section{max-width:var(--maxw);scroll-margin-top:80px}
+  section+section{margin-top:64px}
+
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--accent);font-weight:600;margin:0 0 10px}
+  h2{font-size:1.55rem;font-weight:660;letter-spacing:-.015em;margin:0 0 6px}
+  h3{font-size:1.02rem;font-weight:640;letter-spacing:-.01em;margin:30px 0 8px}
+  section > p{color:#2c3644}
+  p{margin:0 0 14px}
+  .lede{font-size:1.06rem;color:var(--muted)}
+
+  /* ---- hero (inside content column) ---- */
+  header.hero{max-width:var(--maxw);padding:52px 0 26px;border-bottom:1px solid var(--line);margin:0 0 4px}
+  .hero-tag{font-family:var(--mono);font-size:.74rem;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);font-weight:600;margin-bottom:18px}
+  header.hero h1{font-size:2.6rem;font-weight:700;letter-spacing:-.03em;margin:0 0 16px;max-width:15ch}
+  header.hero .lede{max-width:56ch;margin-bottom:24px}
+  .facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .fact{font-family:var(--mono);font-size:.76rem;color:var(--muted);background:var(--surface);
+    border:1px solid var(--line);border-radius:999px;padding:6px 13px}
+  .fact b{color:var(--ink);font-weight:600}
+  @media(max-width:620px){header.hero{padding:36px 0 22px}header.hero h1{font-size:2rem}}
+
+  /* ---- code blocks ---- */
+  .code{position:relative;background:var(--term-bg);border-radius:10px;margin:16px 0;
+    box-shadow:0 1px 0 rgba(0,0,0,.04),0 12px 30px -18px rgba(19,28,40,.5);overflow:hidden}
+  .code .tab{font-family:var(--mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--term-dim);padding:9px 16px 0;display:block}
+  .code pre{margin:0;padding:12px 16px 16px;overflow-x:auto;font-family:var(--mono);
+    font-size:.855rem;line-height:1.75;color:var(--term-ink)}
+  .code .p{color:var(--term-accent);user-select:none}
+  .code .c{color:var(--term-dim)}
+  .code .k{color:#e6b980}
+  .code .s{color:#8fce9b}
+  pre::-webkit-scrollbar{height:8px}
+  pre::-webkit-scrollbar-thumb{background:#2c3a4d;border-radius:4px}
+
+  code.inl{background:var(--accent-tint);color:var(--accent-deep);padding:2px 6px;border-radius:5px;
+    font-size:.86em;white-space:nowrap}
+
+  /* ---- tables ---- */
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin:18px 0;background:var(--surface)}
+  table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:440px}
+  th,td{text-align:left;padding:11px 16px;vertical-align:top;border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  th{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:600;background:var(--surface-2)}
+  td:first-child{white-space:nowrap}
+  td code, th+td code{font-family:var(--mono);color:var(--accent-deep);font-size:.86em}
+  .grp{font-family:var(--mono);font-weight:600;color:var(--ink);font-size:.84rem}
+
+  /* ---- callouts ---- */
+  .note{border-left:3px solid var(--accent);background:var(--accent-tint);padding:13px 18px;border-radius:0 8px 8px 0;margin:18px 0;font-size:.92rem;color:#26333f}
+  .note.warn{border-left-color:var(--warn);background:var(--warn-tint)}
+  .note.ok{border-left-color:var(--ok);background:var(--ok-tint)}
+  .note b{font-weight:660}
+
+  /* ---- pills ---- */
+  .pill{display:inline-block;font-family:var(--mono);font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:5px;letter-spacing:.02em;vertical-align:middle}
+  .pill.exp{background:var(--warn-tint);color:var(--warn)}
+  .pill.new{background:var(--ok-tint);color:var(--ok)}
+
+  /* ---- arch diagram ---- */
+  .flow{margin:22px 0;padding:22px;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow-x:auto}
+  .flow-row{display:flex;align-items:stretch;gap:0;min-width:min-content}
+  .node{flex:0 0 auto;min-width:118px;background:var(--surface-2);border:1px solid var(--line-strong);border-radius:9px;padding:11px 13px}
+  .node .n{font-family:var(--mono);font-size:.8rem;font-weight:600;color:var(--accent-deep)}
+  .node .d{font-size:.72rem;color:var(--muted);margin-top:3px;line-height:1.4}
+  .arrow{flex:0 0 auto;align-self:center;color:var(--faint);font-family:var(--mono);padding:0 12px;font-size:1.1rem}
+  .node.wide{min-width:150px}
+  .flow-cap{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:12px}
+  .flow-row+.flow-cap{margin-top:22px}
+
+  /* ---- layer cards ---- */
+  .layers{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:11px;overflow:hidden;margin:18px 0}
+  @media(min-width:560px){.layers{grid-template-columns:1fr 1fr}}
+  .layer{background:var(--surface);padding:15px 18px}
+  .layer .ln{font-family:var(--mono);font-size:.82rem;font-weight:600;color:var(--ink);margin-bottom:3px}
+  .layer .ld{font-size:.83rem;color:var(--muted);line-height:1.55}
+
+  /* ---- tool grid ---- */
+  .tools{display:grid;gap:14px;margin:18px 0}
+  @media(min-width:560px){.tools{grid-template-columns:1fr 1fr}}
+  .tcat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .tcat h4{margin:0 0 9px;font-size:.82rem;font-family:var(--mono);color:var(--accent-deep);font-weight:600;
+    display:flex;align-items:center;gap:8px}
+  .tcat h4 .ct{margin-left:auto;font-size:.7rem;color:var(--faint)}
+  .tcat ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:5px}
+  .tcat li{font-family:var(--mono);font-size:.71rem;color:var(--muted);background:var(--surface-2);
+    border:1px solid var(--line);border-radius:5px;padding:2px 7px}
+
+  /* ---- principles ---- */
+  .princ{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:11px;overflow:hidden;margin:18px 0}
+  .pr{background:var(--surface);padding:15px 18px;display:grid;grid-template-columns:26px 1fr;gap:14px;align-items:start}
+  .pr .num{font-family:var(--mono);font-size:.78rem;color:var(--accent);font-weight:600;padding-top:2px}
+  .pr .pt{font-weight:640;font-size:.95rem;margin-bottom:2px}
+  .pr .pd{font-size:.86rem;color:var(--muted);line-height:1.55}
+
+  /* ---- exit codes ---- */
+  .codes{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
+  .xc{font-family:var(--mono);font-size:.78rem;border:1px solid var(--line);border-radius:7px;padding:6px 11px;background:var(--surface)}
+  .xc b{color:var(--accent-deep)}
+
+  /* ---- capability scope ---- */
+  .scope{display:grid;gap:14px;margin:18px 0}
+  .sdomain{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:16px 18px}
+  .sdomain .sname{font-family:var(--mono);font-weight:600;font-size:.9rem;color:var(--ink);margin-bottom:13px;
+    display:flex;align-items:center;gap:9px}
+  .sdomain .sname .exp{margin-left:2px}
+  .scols{display:grid;gap:16px}
+  @media(min-width:560px){.scols{grid-template-columns:1fr 1fr}}
+  .scol .sh{font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+    display:inline-block;padding:2px 8px;border-radius:5px;margin-bottom:9px}
+  .scol.ok .sh{color:var(--ok);background:var(--ok-tint)}
+  .scol.no .sh{color:var(--warn);background:var(--warn-tint)}
+  .scol ul{margin:0;padding:0;list-style:none}
+  .scol li{font-size:.855rem;line-height:1.5;padding-left:17px;position:relative;margin-bottom:6px;color:#2c3644}
+  .scol li:last-child{margin-bottom:0}
+  .scol.ok li::before{content:"✓";position:absolute;left:0;top:-.5px;color:var(--ok);font-weight:700}
+  .scol.no li::before{content:"–";position:absolute;left:2px;color:var(--warn);font-weight:700}
+
+  footer{border-top:1px solid var(--line);margin-top:60px}
+  @media(min-width:1000px){footer{grid-column:1 / -1}}
+  .foot-in{max-width:var(--maxw);padding:30px 0 60px;font-size:.85rem;color:var(--muted);font-family:var(--mono)}
+  .foot-in a{margin-right:18px}
+  @media(min-width:1000px){.foot-in{margin-left:276px}}
+
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+  @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <div class="brand"><span class="sq"></span>dooray-agent</div>
+    <div class="topbar-meta"><span>v0.1.0</span><span>MIT</span><span>node ≥20</span></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <nav class="toc" aria-label="목차">
+    <div class="lbl">시작</div>
+    <ol>
+      <li><a href="#what">개요</a></li>
+      <li><a href="#install">설치</a></li>
+      <li><a href="#start">시작하기</a></li>
+    </ol>
+    <div class="lbl">사용</div>
+    <ol>
+      <li><a href="#commands">명령</a></li>
+      <li><a href="#scope">기능 범위</a></li>
+      <li><a href="#output">출력 모드</a></li>
+      <li><a href="#mcp">MCP 서버</a></li>
+    </ol>
+    <div class="lbl">구조</div>
+    <ol>
+      <li><a href="#arch">아키텍처</a></li>
+      <li><a href="#principles">설계 원칙</a></li>
+      <li><a href="#security">보안</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <header class="hero">
+      <div class="hero-tag">터미널 · Claude Code · Claude Desktop</div>
+      <h1>Dooray 문서를 읽고 쓰는 CLI &amp; 로컬 MCP 서버</h1>
+      <p class="lede">NHN Dooray 의 위키·업무·캘린더·메일을 터미널에서 자동화한다. AI 에이전트가 결과를 파싱해 다음 행동으로 바로 잇도록, <b>모든 명령이 기계가 읽는 출력</b>을 제공한다.</p>
+      <div class="code">
+        <span class="tab">shell — 전역 설치</span>
+        <pre><span class="p">$</span> npm install -g dooray-agent</pre>
+      </div>
+      <div class="facts">
+        <span class="fact"><b>3</b> 실행 파일 · dra / dooray-agent / -mcp</span>
+        <span class="fact"><b>27</b> MCP 도구</span>
+        <span class="fact"><b>3-모드</b> 출력 · json / quiet / 표</span>
+      </div>
+    </header>
+
+    <section id="what">
+      <p class="eyebrow">개요</p>
+      <h2>무엇을 하나</h2>
+      <p>사람이 터미널에서 쓰기에도 편하지만, 1순위 사용자는 <b>AI 에이전트</b>다. Dooray 문서를 조회·생성·수정·댓글까지 자동화하며, 두 가지 표면으로 노출된다.</p>
+      <div class="layers">
+        <div class="layer"><div class="ln">CLI — <code>dra</code></div><div class="ld">터미널·스크립트·Claude Code 에서 직접 실행. 모든 명령이 <code>--json</code>/<code>--quiet</code>/표 3-모드.</div></div>
+        <div class="layer"><div class="ln">MCP 서버 — <code>dooray-agent-mcp</code></div><div class="ld">Claude Desktop·Claude Code 가 도구로 호출하는 로컬 stdio 서버. 같은 패키지·같은 코어 공유.</div></div>
+      </div>
+      <p>토큰 한 번 등록하면 두 표면이 인증을 공유한다. 토큰은 로컬 밖으로 나가지 않는다.</p>
+    </section>
+
+    <section id="install">
+      <p class="eyebrow">설치</p>
+      <h2>설치 — 용도별 택 1</h2>
+      <p>아래는 <b>순서가 아니라 선택지</b>다. npm 과 소스는 같은 결과의 두 대안이니 <b>하나만</b> 하면 되고, 플러그인은 Claude Code 편의 레이어라 선택이다. 요구사항은 <b>Node.js 20 이상</b>.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>어떻게 쓰나</th><th>무엇을 설치</th></tr></thead>
+          <tbody>
+            <tr><td>터미널에서 <code>dra</code></td><td>npm 전역 설치 <span class="pill new">최소 구성</span></td></tr>
+            <tr><td>Claude Desktop 도구로</td><td>npm 전역 설치 → Desktop 에 <code>dooray-agent-mcp</code> 등록</td></tr>
+            <tr><td>Claude Code <code>/dooray</code>·스킬</td><td>플러그인 (+ CLI 선행)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>A · npm 전역 설치 <span class="pill new">권장</span></h3>
+      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> npm install -g dooray-agent</pre></div>
+      <p><code class="inl">dra</code> 는 <code class="inl">dooray-agent</code> 의 짧은 별칭이다. 로컬 MCP 서버 bin <code class="inl">dooray-agent-mcp</code> 도 함께 설치된다. <b>이 한 줄로 CLI + MCP 둘 다 준비된다.</b></p>
+      <h3>B · 소스에서 (개발·기여, A 의 대안)</h3>
+      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> git clone https://github.com/JLee-Inps/dooray-agent.git
+<span class="p">$</span> cd dooray-agent
+<span class="p">$</span> npm install <span class="c"># 의존성</span>
+<span class="p">$</span> npm run build <span class="c"># dist/cli.js + dist/mcp.js</span>
+<span class="p">$</span> npm link <span class="c"># 전역 링크</span></pre></div>
+      <h3>C · Claude Code 플러그인 (선택 · CLI 선행 필요)</h3>
+      <p>스킬 + <code class="inl">/dooray</code> 슬래시 명령을 얹는다. 플러그인은 <code class="inl">dra</code> 를 호출하므로 A 나 B 가 먼저 돼 있어야 한다.</p>
+      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> claude plugin marketplace add JLee-Inps/dooray-agent
+<span class="p">$</span> claude plugin install dooray-agent@dooray-agent-marketplace</pre></div>
+    </section>
+
+    <section id="start">
+      <p class="eyebrow">시작하기</p>
+      <h2>인증 &amp; 첫 호출</h2>
+      <p>Dooray 개인 설정 → API 에서 인증 토큰을 발급한 뒤 한 번만 등록한다.</p>
+      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> dra login --token <span class="k">&lt;DOORAY_API_TOKEN&gt;</span> --base-url https://api.dooray.com
+<span class="p">$</span> dra whoami --json
+<span class="s">{"id":"...","name":"...","externalEmailAddress":"..."}</span></pre></div>
+      <div class="note"><b>메일은 선택 기능.</b> <code>mail *</code> 은 REST 토큰과 별개로 IMAP/SMTP 설정이 필요하다 — <code>dra config set imap-host imap.dooray.com · mail-user &lt;주소&gt; · mail-password &lt;IMAP 앱 비밀번호&gt;</code>. 미설정이어도 다른 명령은 정상 동작하고, 메일 명령만 설정 방법을 안내한다.</div>
+
+      <h3>토큰은 어디에 저장되나</h3>
+      <p>입력한 토큰은 <b>설치한 컴퓨터의 홈 디렉터리 한 파일</b>에만 저장된다 — 다른 곳으로 동기화·업로드되지 않는다. 머신마다 각자의 파일을 갖는다.</p>
+      <div class="code"><span class="tab">~/.dooray-agent/config.json — 파일 권한 0600</span><pre>{
+  <span class="k">"token"</span>: <span class="s">"s1fv6l…"</span>,                 <span class="c">// Dooray API 토큰</span>
+  <span class="k">"baseUrl"</span>: <span class="s">"https://api.dooray.com"</span>
+  <span class="c">// 메일 사용 시에만: imapHost · smtpHost · mailUser · mailPassword</span>
+}</pre></div>
+      <div class="layers">
+        <div class="layer"><div class="ln">위치 · 권한</div><div class="ld">파일 <code>~/.dooray-agent/config.json</code> 은 <code>0600</code>(본인만 읽기/쓰기), 디렉터리는 <code>0700</code>. 같은 컴퓨터의 다른 사용자도 못 읽는다.</div></div>
+        <div class="layer"><div class="ln">로컬 전용</div><div class="ld">이 파일 밖으로 나가지 않는다. 환경변수 폴백 없음. 레포·npm 패키지·git 히스토리·로그 어디에도 없다.</div></div>
+        <div class="layer"><div class="ln">유일한 전송처</div><div class="ld">Dooray API 요청 시 <code>Authorization: dooray-api &lt;토큰&gt;</code> 헤더(<b>HTTPS</b>)로만 나간다. 리다이렉트 시 같은 스코프에서만 재부착.</div></div>
+        <div class="layer"><div class="ln">확인 · 삭제</div><div class="ld"><code>dra config get</code> 은 토큰을 <code>s1fv****</code> 로 마스킹해 보여준다. <code>rm ~/.dooray-agent/config.json</code> 이면 완전 삭제(로그아웃 효과).</div></div>
+      </div>
+    </section>
+
+    <section id="commands">
+      <p class="eyebrow">사용</p>
+      <h2>명령</h2>
+      <p>영역별 명령 그룹. 전체 인자·옵션은 <code class="inl">dra capabilities --json</code> 으로 런타임에 자기탐색한다.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>영역</th><th>명령</th></tr></thead>
+          <tbody>
+            <tr><td class="grp">인증·설정</td><td><code>login</code> · <code>setup</code> · <code>config get/set</code> · <code>whoami</code> · <code>doctor</code></td></tr>
+            <tr><td class="grp">프로젝트</td><td><code>project list/create</code> · <code>members / tags / milestones / workflows / groups / templates</code></td></tr>
+            <tr><td class="grp">업무</td><td><code>post list/get/create/edit/done/workflow/search</code> · <code>post comment *</code> · <code>post file *</code></td></tr>
+            <tr><td class="grp">위키</td><td><code>wiki pages</code> · <code>wiki page get/create/edit/delete</code> · <code>page comment *</code> · <code>page file *</code></td></tr>
+            <tr><td class="grp">멤버·메일</td><td><code>member get/search</code> · <code>mail list/get/send</code></td></tr>
+            <tr><td class="grp">캘린더</td><td><code>calendar list/events/create/get/edit/delete</code></td></tr>
+            <tr><td class="grp">메신저·드라이브 <span class="pill exp">실험적</span></td><td><code>messenger channels/send</code> · <code>drive list/files/download/upload</code></td></tr>
+            <tr><td class="grp">도구</td><td><code>cache clear</code> · <code>feedback</code> · <code>capabilities</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>이름 해석: 프로젝트 코드·워크플로 이름 등을 자동으로 ID 로 바꾼다(파일 캐시로 반복 호출 최소화). 15자리+ raw ID 는 그대로 통과한다.</p>
+      <div class="code"><span class="tab">shell — 읽기 → 가공 → 쓰기 (지정 안 한 필드는 현재 값 유지)</span><pre><span class="p">$</span> BODY=$(dra wiki page get <span class="k">&lt;project&gt; &lt;pageId&gt;</span> --json | jq -r <span class="s">'.body.content'</span>)
+<span class="p">$</span> dra wiki page edit <span class="k">&lt;project&gt; &lt;pageId&gt;</span> --body <span class="s">"$BODY
+
+## 자동 갱신"</span> --json | jq -r <span class="s">'.status'</span>
+<span class="s">"updated"</span></pre></div>
+    </section>
+
+    <section id="scope">
+      <p class="eyebrow">사용</p>
+      <h2>기능 범위 — 되는 것 / 안 되는 것</h2>
+      <p>지금 실제로 다룰 수 있는 것과, 아직 안 되는 것을 솔직하게 정리한다. 특히 캘린더는 <b>일정 등록·조회·수정은 되지만 회의실·자원 예약은 안 된다</b> — Dooray 공개 API 가 자원 예약 전용 엔드포인트를 노출하지 않기 때문이다(제품 UI 에는 있으나 API 미지원).</p>
+
+      <div class="scope">
+        <div class="sdomain">
+          <div class="sname">캘린더</div>
+          <div class="scols">
+            <div class="scol ok"><span class="sh">가능</span><ul>
+              <li>캘린더 목록 조회</li>
+              <li>이벤트 목록 조회 (기본 지금 ~ +7일, 전체 캘린더)</li>
+              <li>이벤트 단건 조회</li>
+              <li>이벤트 등록 — 제목·시작·종료·본문(마크다운)·종일</li>
+              <li>이벤트 수정 (부분 — 미지정 필드 보존) · 삭제</li>
+            </ul></div>
+            <div class="scol no"><span class="sh">안 됨 · 제한</span><ul>
+              <li><b>자원 예약(회의실·자원)</b> — 공개 API 미노출</li>
+              <li>참석자 지정 입력 — 등록/수정 옵션 없음 (기존 참석자는 수정 시 보존만)</li>
+              <li>반복 일정 · 장소 · 알림/리마인더</li>
+              <li>넓은 기간 조회 — Dooray 최대 조회기간 제한(초과 시 에러)</li>
+            </ul></div>
+          </div>
+        </div>
+
+        <div class="sdomain">
+          <div class="sname">업무</div>
+          <div class="scols">
+            <div class="scol ok"><span class="sh">가능</span><ul>
+              <li>목록 · 조회 · 생성 · 수정(부분) · 검색</li>
+              <li>완료 처리 · 워크플로 전이</li>
+              <li>댓글 목록·추가·수정·삭제 (CLI)</li>
+              <li>파일 첨부 · 다운로드</li>
+            </ul></div>
+            <div class="scol no"><span class="sh">안 됨 · 제한</span><ul>
+              <li>수정 시 <b>마일스톤·초기 워크플로 보존 안 됨</b> (알려진 한계)</li>
+              <li>MCP 도구는 댓글 <b>목록·추가</b>까지만 (수정·삭제는 CLI 전용)</li>
+              <li>100건 초과 목록은 일부 누락 가능 (알려진 한계)</li>
+            </ul></div>
+          </div>
+        </div>
+
+        <div class="sdomain">
+          <div class="sname">위키</div>
+          <div class="scols">
+            <div class="scol ok"><span class="sh">가능</span><ul>
+              <li>페이지 목록 · 조회</li>
+              <li>생성 (부모 미지정 시 루트 하위 자동) · 수정(부분) · 삭제</li>
+              <li>댓글 목록·추가·수정·삭제 (CLI)</li>
+              <li>파일 첨부 · 다운로드</li>
+            </ul></div>
+            <div class="scol no"><span class="sh">안 됨 · 제한</span><ul>
+              <li>MCP 도구는 댓글 <b>추가</b>만 (목록·수정·삭제는 CLI 전용)</li>
+              <li>페이지 이동(부모 변경) 미노출</li>
+            </ul></div>
+          </div>
+        </div>
+
+        <div class="sdomain">
+          <div class="sname">메일 <span class="pill exp">IMAP/SMTP 옵트인</span></div>
+          <div class="scols">
+            <div class="scol ok"><span class="sh">가능</span><ul>
+              <li>최근 메일 목록 조회 (IMAP)</li>
+              <li>단건 조회 — 본문 파싱 (IMAP)</li>
+              <li>발송 — 받는사람·제목·본문 (SMTP)</li>
+            </ul></div>
+            <div class="scol no"><span class="sh">안 됨 · 제한</span><ul>
+              <li>참조(cc/bcc) · 첨부 입력 없음</li>
+              <li>메일 검색 없음</li>
+              <li>REST 토큰과 별개로 IMAP/SMTP 설정 필요</li>
+            </ul></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note warn"><b>전반 한계.</b> <code>messenger</code>·<code>drive</code> 는 <b>실험적</b>(공개 API 미검증 — 경로·응답 형태가 실제와 다를 수 있음). 검색은 <b>키워드 기반</b>이며 문서 전체를 관통하는 시맨틱/전문 검색은 없다. 표면(CLI vs MCP)에 따라 노출 범위가 다른 부분이 있으니 위 표를 기준으로 삼는다.</div>
+    </section>
+
+    <section id="output">
+      <p class="eyebrow">사용</p>
+      <h2>출력 모드 &amp; 종료 코드</h2>
+      <p>모든 읽기/쓰기 명령이 세 가지 모드를 제공한다 — 예외 없음.</p>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>모드</th><th>용도</th></tr></thead>
+          <tbody>
+            <tr><td><code>(기본)</code></td><td>사람이 읽는 표. 조회 시 본문도 이어서 보여준다.</td></tr>
+            <tr><td><code>--json</code></td><td>구조화된 JSON — 에이전트는 항상 이걸 쓴다. 읽기는 API 원자료, 쓰기는 <code>{ ...id, status }</code>.</td></tr>
+            <tr><td><code>--quiet</code></td><td>식별자만 — 파이프용.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>실패도 파싱 가능하다 — <code class="inl">--json</code> 에러는 <code class="inl">{ error: { message, code } }</code>. 종료 코드로 원인을 구분한다:</p>
+      <div class="codes">
+        <span class="xc"><b>0</b> 성공</span>
+        <span class="xc"><b>1</b> API</span>
+        <span class="xc"><b>2</b> 인증</span>
+        <span class="xc"><b>3</b> 사용법</span>
+        <span class="xc"><b>4</b> 설정</span>
+      </div>
+    </section>
+
+    <section id="mcp">
+      <p class="eyebrow">사용</p>
+      <h2>MCP 서버 — Claude 에 연결</h2>
+      <p><code class="inl">dooray-agent-mcp</code> 는 로컬 <b>stdio MCP 서버</b>다. 원격/호스팅 없이 내 컴퓨터에서 돌고, CLI 와 같은 코어·같은 인증을 공유한다. 표면은 <code class="inl">tools</code> 전용이라 클라이언트 호환이 넓다.</p>
+      <h3>Claude Desktop</h3>
+      <p><code class="inl">~/.config/claude/claude_desktop_config.json</code> 에 추가하고 재시작한다.</p>
+      <div class="code"><span class="tab">json</span><pre>{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"dooray"</span>: { <span class="k">"command"</span>: <span class="s">"dooray-agent-mcp"</span> }
+  }
+}</pre></div>
+      <h3>Claude Code</h3>
+      <div class="code"><span class="tab">shell</span><pre><span class="p">$</span> claude mcp add dooray -- dooray-agent-mcp</pre></div>
+      <h3>제공 도구 27종</h3>
+      <div class="tools">
+        <div class="tcat"><h4>업무 <span class="ct">9</span></h4><ul>
+          <li>list</li><li>get</li><li>create</li><li>edit</li><li>done</li><li>workflow</li><li>search</li><li>comment_list</li><li>comment_add</li></ul></div>
+        <div class="tcat"><h4>위키 <span class="ct">6</span></h4><ul>
+          <li>pages</li><li>page_get</li><li>page_create</li><li>page_edit</li><li>page_delete</li><li>comment_add</li></ul></div>
+        <div class="tcat"><h4>캘린더 <span class="ct">6</span></h4><ul>
+          <li>list</li><li>events</li><li>event_get</li><li>event_create</li><li>event_edit</li><li>event_delete</li></ul></div>
+        <div class="tcat"><h4>메일 · 코어 <span class="ct">6</span></h4><ul>
+          <li>mail_list</li><li>mail_get</li><li>mail_send</li><li>whoami</li><li>project_list</li><li>member_search</li></ul></div>
+      </div>
+      <p>도구 오류는 단일 지점에서 <code class="inl">{ isError, code }</code> 로 매핑되어 CLI <code class="inl">--json</code> 에러와 동일한 스키마를 유지한다.</p>
+    </section>
+
+    <section id="arch">
+      <p class="eyebrow">구조</p>
+      <h2>아키텍처</h2>
+      <p>단방향 데이터 흐름. 각 계층은 아래 계층만 알고, 위를 모른다. CLI 와 MCP 는 병렬 진입점이며 하위 계층(이름해석·API·코어)을 공유한다.</p>
+
+      <div class="flow">
+        <div class="flow-cap">CLI 경로</div>
+        <div class="flow-row">
+          <div class="node"><div class="n">cli.ts</div><div class="d">진입점 · 전역 옵션 · 단일 에러 싱크</div></div>
+          <span class="arrow">→</span>
+          <div class="node"><div class="n">commands/*</div><div class="d">얇은 오케스트레이터</div></div>
+          <span class="arrow">→</span>
+          <div class="node wide"><div class="n">resolve/* · client</div><div class="d">이름→ID · Dooray API</div></div>
+          <span class="arrow">→</span>
+          <div class="node"><div class="n">core/output</div><div class="d">3-모드 렌더</div></div>
+        </div>
+        <div class="flow-cap">MCP 경로 — 하위 계층 공유</div>
+        <div class="flow-row">
+          <div class="node"><div class="n">mcp.ts</div><div class="d">stdio 진입</div></div>
+          <span class="arrow">→</span>
+          <div class="node"><div class="n">mcp/serve</div><div class="d">도구 등록 · 에러 매핑</div></div>
+          <span class="arrow">→</span>
+          <div class="node wide"><div class="n">mcp/tools</div><div class="d">27 핸들러 → resolve/* · client</div></div>
+        </div>
+      </div>
+
+      <div class="layers">
+        <div class="layer"><div class="ln">src/cli.ts</div><div class="ld">진입점. 전역 옵션(json/quiet/no-color)과 <b>유일한 에러 출력·종료 지점</b>. 명령은 try/catch 하지 않고 여기로 버블한다.</div></div>
+        <div class="layer"><div class="ln">src/core/</div><div class="ld">횡단 인프라 — errors(AppError+ExitCode) · output(3-모드) · config · cache(TTL) · session.</div></div>
+        <div class="layer"><div class="ln">src/dooray/</div><div class="ld">API 계층 — ky 래퍼, 단일 에러 정규화, 페이지네이션. mail 은 IMAP/SMTP.</div></div>
+        <div class="layer"><div class="ln">src/resolve/</div><div class="ld">사용자 문자열 → Dooray ID. 캐시 + 이름 매칭(정확 → 부분 → 모호 에러).</div></div>
+        <div class="layer"><div class="ln">src/commands/</div><div class="ld">명령 그룹. 각 액션은 읽기·해석·쓰기·렌더를 잇는 얇은 오케스트레이터.</div></div>
+        <div class="layer"><div class="ln">src/mcp/</div><div class="ld">두 번째 진입 표면. serve(등록·에러 매핑) + tools(27 핸들러)가 resolve/client 를 재사용.</div></div>
+      </div>
+    </section>
+
+    <section id="principles">
+      <p class="eyebrow">구조</p>
+      <h2>설계 원칙</h2>
+      <div class="princ">
+        <div class="pr"><div class="num">01</div><div><div class="pt">단일 에러 타입 · 단일 싱크</div><div class="pd"><code>AppError(message, code)</code> 하나. 명령은 삼키지 않고 진입점으로 버블하며, 출력·종료는 한 곳에서만 일어난다.</div></div></div>
+        <div class="pr"><div class="num">02</div><div><div class="pt">3-모드 출력, 예외 없음</div><div class="pd">모든 읽기/쓰기가 json/quiet/표를 제공. 데이터는 stdout, 스피너·에러는 stderr — 기계 출력이 오염되지 않는다.</div></div></div>
+        <div class="pr"><div class="num">03</div><div><div class="pt">부분 수정 기본</div><div class="pd"><code>edit</code> 는 지정 안 한 필드를 현재 값으로 유지한다. 서버가 전체 교체(PUT)라도 현재값을 읽어 재공급한다.</div></div></div>
+        <div class="pr"><div class="num">04</div><div><div class="pt">이름 해석 + 캐시</div><div class="pd">프로젝트 코드·워크플로 이름을 ID 로 해석하고 파일 캐시(TTL)로 반복 호출을 줄인다. raw ID 는 통과.</div></div></div>
+        <div class="pr"><div class="num">05</div><div><div class="pt">계약이 단일 출처</div><div class="pd"><code>contracts/</code> 가 명령 표면·타입·MCP 도구의 불변 SSOT. 구현은 이를 따르고 타입 검사가 드리프트를 잡는다.</div></div></div>
+        <div class="pr"><div class="num">06</div><div><div class="pt">TS strict · ESM · named export</div><div class="pd"><code>noUncheckedIndexedAccess</code> 포함 strict, ESM 모듈, default export 금지. tsup 로 dual-bin 번들.</div></div></div>
+      </div>
+    </section>
+
+    <section id="security">
+      <p class="eyebrow">구조</p>
+      <h2>보안</h2>
+      <div class="layers">
+        <div class="layer"><div class="ln">토큰 로컬 보관</div><div class="ld"><code>~/.dooray-agent/config.json</code> 을 <code>0600</code>, 디렉터리 <code>0700</code> 으로 저장. 외부 전송·로그 출력 없음. (자세히는 「시작하기 → 토큰은 어디에 저장되나」)</div></div>
+        <div class="layer"><div class="ln">리다이렉트 스코프</div><div class="ld">파일 다운로드/업로드 리다이렉트 시 <b>같은 스코프에서만</b> 인증 헤더 재부착. 외부 호스트·<code>https→http</code> 강등이면 토큰을 떼어낸다.</div></div>
+        <div class="layer"><div class="ln">마스킹 출력</div><div class="ld"><code>config get</code> 은 토큰·메일 비밀번호를 마스킹해 보여준다.</div></div>
+        <div class="layer"><div class="ln">단일 발송 부작용</div><div class="ld"><code>mail send</code> 만 되돌릴 수 없는 외부 부작용 — 도구 설명에 명시된다.</div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="foot-in">
+      <a href="https://www.npmjs.com/package/dooray-agent">npm</a>
+      <a href="https://github.com/JLee-Inps/dooray-agent">GitHub</a>
+      <span>dooray-agent v0.1.0 · MIT</span>
+    </div>
+  </footer>
+</div>
+
+</body>
+</html>
