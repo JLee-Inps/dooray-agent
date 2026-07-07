@@ -16,6 +16,9 @@ npm-debug.log*
 .idea/
 .vscode/
 
+# claude code dev harness (published plugin manifest .claude-plugin/ is kept)
+.claude/
+
 # env / secrets
 .env
 .env.*
