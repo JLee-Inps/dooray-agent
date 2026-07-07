@@ -18,6 +18,7 @@
 - 종료 코드는 `ExitCode` 상수만 사용(매직 넘버 금지).
 - 페이지 조회는 `Page<T> = { items, totalCount }`(`src/dooray/client.ts`).
 - `--json` 출력의 리소스 형태는 API 원자료(`result`)를 그대로 유지한다.
+- `WikiPage` 는 루트 페이지 식별용 `root?: boolean` 을 포함한다(Dooray 위키 트리에서 루트는 `root===true`). SSOT=`src/dooray/types.ts`.
 
 ## MCP 도구 표면 (재사용 note)
 

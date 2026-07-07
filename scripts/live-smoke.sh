@@ -33,12 +33,12 @@ else no "whoami 실패 — dra login 먼저 (아래 에러)"; cat /tmp/dra-smoke
 hr "1. 문서 조회 — 프로젝트/업무"
 if PJ=$(run project list); then
   ok "project list OK"
-  PID=$(printf '%s' "$PJ" | grep -oE '"id":"[0-9]+"' | head -1 | grep -oE '[0-9]+')
+  PID=$(printf '%s' "$PJ" | grep -oE '"id": *"[0-9]+"' | head -1 | grep -oE '[0-9]+')
   if [ -n "${PID:-}" ]; then
     printf '    첫 프로젝트 id=%s\n' "$PID"
     if PL=$(run post list "$PID"); then
       ok "post list OK"
-      POSTID=$(printf '%s' "$PL" | grep -oE '"id":"[0-9]+"' | head -1 | grep -oE '[0-9]+')
+      POSTID=$(printf '%s' "$PL" | grep -oE '"id": *"[0-9]+"' | head -1 | grep -oE '[0-9]+')
       if [ -n "${POSTID:-}" ]; then
         if run post get "$PID" "$POSTID" >/dev/null; then ok "post get OK (본문 포함)"; else no "post get 실패"; fi
       else sk "업무가 없어 post get 스킵"; fi

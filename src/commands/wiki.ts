@@ -8,7 +8,7 @@ import { createClient } from "../core/session";
 import { render, reportWrite, type OutputMode } from "../core/output";
 import { summarizeDownloads, type DownloadOutcome } from "../core/download";
 import { startSpinner, stopSpinner } from "../core/spinner";
-import { resolveWikiId } from "../resolve/project";
+import { resolveWikiId, resolveParentPageId } from "../resolve/project";
 
 const MARKDOWN = "text/x-markdown";
 
@@ -84,7 +84,7 @@ export function wikiCommand(): Command {
         const { id } = await client.createWikiPage(wikiId, {
           subject: opts.title,
           body: { mimeType: MARKDOWN, content: opts.body },
-          parentPageId: opts.parent,
+          parentPageId: await resolveParentPageId(client, wikiId, opts.parent),
         });
         stopSpinner();
         reportWrite(mode, {

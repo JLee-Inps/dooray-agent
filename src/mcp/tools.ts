@@ -5,7 +5,11 @@ import { z, type ZodTypeAny } from "zod";
 import type { DoorayClient } from "../dooray/client";
 import type { Credentials } from "../core/config";
 import { AppError, ExitCode } from "../core/errors";
-import { resolveProjectId, resolveWikiId } from "../resolve/project";
+import {
+  resolveProjectId,
+  resolveWikiId,
+  resolveParentPageId,
+} from "../resolve/project";
 import { resolveWorkflowId, findClosedWorkflowId } from "../resolve/workflow";
 import { listMail, getMail, sendMail } from "../dooray/mail";
 
@@ -343,7 +347,7 @@ export const tools: ToolDef[] = [
       const result = await client.createWikiPage(wikiId, {
         subject: title,
         body: { mimeType: MARKDOWN, content: body ?? "" },
-        parentPageId: parent,
+        parentPageId: await resolveParentPageId(client, wikiId, parent),
       });
       return { pageId: result.id, status: "created" };
     },

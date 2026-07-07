@@ -107,6 +107,8 @@ export interface WikiPage {
   subject: string;
   body?: PostBody;
   parentPageId?: string | null;
+  /** 위키 트리의 루트 페이지면 true. 위키 create 시 기본 부모 폴백에 쓰인다. */
+  root?: boolean;
 }
 
 export interface WikiComment {

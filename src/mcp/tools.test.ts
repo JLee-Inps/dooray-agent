@@ -28,6 +28,7 @@ const RAW_COMMENT_ID = "500000000000001";
 const RAW_WORKFLOW_ID = "600000000000001";
 const RAW_CALENDAR_ID = "700000000000001";
 const RAW_EVENT_ID = "800000000000001";
+const ROOT_PAGE_ID = "400000000000099";
 
 /** 위키 테스트용 mock wiki list. RAW_PROJECT 와 연결. */
 const WIKI_LIST = [
@@ -523,8 +524,12 @@ describe("mcp/tools 핸들러 단위 테스트", () => {
   });
 
   // ── 15. dooray_wiki_page_create ─────────────────────────────────────
-  it("dooray_wiki_page_create: createWikiPage 호출 + { pageId, status:'created' } 반환", async () => {
+  it("dooray_wiki_page_create: parent 미지정 시 루트 페이지를 기본 부모로 사용한다(버그2 회귀)", async () => {
     const client = makeMockClient();
+    (client.listWikiPages as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items: [{ id: ROOT_PAGE_ID, subject: "root", root: true }],
+      totalCount: 1,
+    });
     (client.createWikiPage as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: RAW_PAGE_ID,
     });
@@ -536,15 +541,16 @@ describe("mcp/tools 핸들러 단위 테스트", () => {
         body: "본문",
       },
     );
+    expect(client.listWikiPages).toHaveBeenCalledWith(RAW_WIKI_ID);
     expect(client.createWikiPage).toHaveBeenCalledWith(RAW_WIKI_ID, {
       subject: "새 페이지",
       body: { mimeType: "text/x-markdown", content: "본문" },
-      parentPageId: undefined,
+      parentPageId: ROOT_PAGE_ID,
     });
     expect(result).toEqual({ pageId: RAW_PAGE_ID, status: "created" });
   });
 
-  it("dooray_wiki_page_create: parent 지정 시 parentPageId 전달", async () => {
+  it("dooray_wiki_page_create: parent 지정 시 parentPageId 그대로 전달(listWikiPages 미호출)", async () => {
     const client = makeMockClient();
     (client.createWikiPage as ReturnType<typeof vi.fn>).mockResolvedValue({
       id: RAW_PAGE_ID,
@@ -558,6 +564,7 @@ describe("mcp/tools 핸들러 단위 테스트", () => {
       RAW_WIKI_ID,
       expect.objectContaining({ parentPageId: "700000000000001" }),
     );
+    expect(client.listWikiPages).not.toHaveBeenCalled();
   });
 
   // ── 16. dooray_wiki_page_edit (부분 수정 anti-overfit) ──────────────

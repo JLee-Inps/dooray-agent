@@ -56,6 +56,7 @@ CLI 명령 표면(`contracts/api-spec.md`)과 **별개의 공개 표면**이다 
 
 - **마크다운 mime**: 업무 본문·업무 댓글·위키 본문은 `{ mimeType:"text/x-markdown", content }`. **위키 댓글만 `{ content }`(mimeType 없음).**
 - **부분 수정**(7·16): 현재 값을 읽어 미지정 필드를 유지한다. `dooray_post_edit`(7)는 `getPost` 로 `tags`·담당자(`to`/`cc`)까지 read-back 재공급한다(입력 표면은 title/body 만 — tag/cc/to 인자 없음이라 항상 현재값 보존). **milestone·workflow 는 보존 안 함**(known limitation). 위키(16)는 title/body 병합.
+- **위키 create 부모**(15): `parent` 미지정 시 루트 페이지(`root===true`) 하위 생성(CLI `wiki page create` 와 동일 기본값). 루트 미발견 시 오류.
 - **post done**(8): closed 클래스 워크플로를 찾아 set-workflow(전용 done 엔드포인트 미의존).
 - **캘린더 mime**: 이벤트 body 는 `{ mimeType:"text/x-markdown", content }`. `allDay` → `wholeDayFlag:true`.
 - **캘린더 부분수정**(23): `getEvent` 로 현재값 읽어 미지정 유지 — `body`·`wholeDayFlag`·참석자(`users`)까지 read-back 재공급한다(입력 표면은 subject/body/start/end 만). `startedAt`/`endedAt` 는 `updateEvent` 필수라 반드시 현재값을 공급.

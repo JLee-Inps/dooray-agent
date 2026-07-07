@@ -199,6 +199,92 @@ describe("페이지네이션 under-fetch 경계 (KNOWN LIMITATION)", () => {
   );
 });
 
+describe("listProjects — private+public 병합 (개인 프로젝트 누락 회귀)", () => {
+  it("private/public 을 각각 조회해 병합하고, 개인 프로젝트가 결과에 포함된다", async () => {
+    mockGet.mockImplementation((_path: string, options: any) => {
+      const type = options?.searchParams?.type;
+      if (type === "private") {
+        return ok([{ id: "pj-priv", code: "@developer" }], 1);
+      }
+      if (type === "public") {
+        return ok(
+          [
+            { id: "pj-team-1", code: "TEAM1" },
+            { id: "pj-team-2", code: "TEAM2" },
+          ],
+          2,
+        );
+      }
+      throw new Error(`unexpected type: ${String(type)}`);
+    });
+    const client = new DoorayClient("t", BASE);
+    const result = await client.listProjects();
+
+    expect(result).toEqual([
+      { id: "pj-priv", code: "@developer" },
+      { id: "pj-team-1", code: "TEAM1" },
+      { id: "pj-team-2", code: "TEAM2" },
+    ]);
+    expect(mockGet).toHaveBeenCalledWith("project/v1/projects", {
+      searchParams: { member: "me", type: "private", page: 0, size: 100 },
+    });
+    expect(mockGet).toHaveBeenCalledWith("project/v1/projects", {
+      searchParams: { member: "me", type: "public", page: 0, size: 100 },
+    });
+  });
+
+  it("같은 id 가 private/public 양쪽에 오면 dedupe 되어 1개만 남는다", async () => {
+    mockGet.mockImplementation((_path: string, options: any) => {
+      const type = options?.searchParams?.type;
+      if (type === "private") return ok([{ id: "dup", code: "@dup" }], 1);
+      return ok([{ id: "dup", code: "@dup" }], 1);
+    });
+    const client = new DoorayClient("t", BASE);
+    const result = await client.listProjects();
+    expect(result).toEqual([{ id: "dup", code: "@dup" }]);
+  });
+});
+
+describe("decodeApiMessage 적용 — API 에러 메시지 URL 디코드", () => {
+  it("#readMessage: URL 인코딩된 resultMessage 를 디코드해 노출한다", async () => {
+    const encoded = encodeURIComponent("존재하지 않는 페이지입니다").replace(
+      /%20/g,
+      "+",
+    );
+    mockGet.mockReturnValueOnce({
+      json: () => Promise.reject(httpError(404, encoded)),
+    });
+    const client = new DoorayClient("t", BASE);
+    await expect(client.getMe()).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof AppError &&
+        e.message.includes("존재하지 않는 페이지입니다"),
+    );
+  });
+
+  it("#readMessage: malformed(%zz) 는 fail-safe 로 원문 그대로 노출한다", async () => {
+    mockGet.mockReturnValueOnce({
+      json: () => Promise.reject(httpError(400, "bad%zzmessage")),
+    });
+    const client = new DoorayClient("t", BASE);
+    await expect(client.getMe()).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof AppError && e.message.includes("bad%zzmessage"),
+    );
+  });
+
+  it("#readMessage: 평문 한글 메시지는 디코드해도 원문과 동일(무해, 회귀 확인)", async () => {
+    mockGet.mockReturnValueOnce({
+      json: () => Promise.reject(httpError(401, "인증이 필요합니다")),
+    });
+    const client = new DoorayClient("t", BASE);
+    await expect(client.getMe()).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof AppError && e.message.includes("인증이 필요합니다"),
+    );
+  });
+});
+
 describe("307 다운로드 redirect", () => {
   it("same-scope 리다이렉트 시 Authorization 재부착 + 파일명 파싱", async () => {
     const redirect = new Response(null, {
@@ -285,6 +371,24 @@ describe("307 다운로드 redirect", () => {
     const client = new DoorayClient("t", BASE);
     await expect(client.downloadPostFile("p", "post", "f")).rejects.toSatisfy(
       (e: unknown) => e instanceof AppError && e.code === ExitCode.Api,
+    );
+  });
+
+  it("#ensureOk: non-ok 응답의 URL 인코딩된 resultMessage 도 디코드해 노출한다", async () => {
+    const encoded = encodeURIComponent("파일을 찾을 수 없습니다").replace(
+      /%20/g,
+      "+",
+    );
+    const errorResponse = new Response(
+      JSON.stringify({ header: { resultMessage: encoded } }),
+      { status: 404 },
+    );
+    const fetchMock = vi.fn().mockResolvedValueOnce(errorResponse);
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new DoorayClient("t", BASE);
+    await expect(client.downloadPostFile("p", "post", "f")).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof AppError && e.message.includes("파일을 찾을 수 없습니다"),
     );
   });
 });

@@ -92,7 +92,8 @@ export class DoorayClient {
   async #readMessage(error: HTTPError): Promise<string> {
     try {
       const body = (await error.response.json()) as DoorayResponse<unknown>;
-      return body.header?.resultMessage || error.message;
+      const raw = body.header?.resultMessage;
+      return raw ? decodeApiMessage(raw) : error.message;
     } catch {
       return error.message;
     }
@@ -151,9 +152,32 @@ export class DoorayClient {
   // ── 프로젝트 메타 ─────────────────────────────────────
 
   async listProjects(): Promise<Project[]> {
-    return this.#collect((page, size) =>
-      this.#page<Project>("project/v1/projects", { member: "me", page, size }),
-    );
+    // Dooray 는 `type` 미지정 시 `type=public` 만 반환해 개인 프로젝트
+    // (`type=private`, code `@`로 시작)를 누락한다. comma 결합(`private,public`)은
+    // `USER_INVALID_ERROR` 라 두 번 조회 후 id 로 dedupe 병합한다.
+    const [privateProjects, publicProjects] = await Promise.all([
+      this.#collect((page, size) =>
+        this.#page<Project>("project/v1/projects", {
+          member: "me",
+          type: "private",
+          page,
+          size,
+        }),
+      ),
+      this.#collect((page, size) =>
+        this.#page<Project>("project/v1/projects", {
+          member: "me",
+          type: "public",
+          page,
+          size,
+        }),
+      ),
+    ]);
+    const merged = new Map<string, Project>();
+    for (const project of [...privateProjects, ...publicProjects]) {
+      merged.set(project.id, project);
+    }
+    return [...merged.values()];
   }
 
   async createProject(input: {
@@ -659,7 +683,8 @@ export class DoorayClient {
     let detail = response.statusText;
     try {
       const body = (await response.json()) as DoorayResponse<unknown>;
-      detail = body.header?.resultMessage || detail;
+      const raw = body.header?.resultMessage;
+      detail = raw ? decodeApiMessage(raw) : detail;
     } catch {
       // 본문이 JSON 이 아니면 statusText 를 그대로 쓴다.
     }
@@ -690,6 +715,20 @@ export class DoorayClient {
       page += 1;
     }
     return all;
+  }
+}
+
+/**
+ * Dooray API 에러 메시지(`header.resultMessage`)를 디코드한다.
+ * 서버가 URL 인코딩(`%EC%9E%85...`, 공백은 `+`)으로 메시지를 보내는 경우가 있어
+ * 그대로 노출하면 사용자에게 `%` 범벅으로 보인다. malformed(`%zz` 등)는 fail-safe 로
+ * 원문을 그대로 돌려준다.
+ */
+export function decodeApiMessage(s: string): string {
+  try {
+    return decodeURIComponent(s.replace(/\+/g, " "));
+  } catch {
+    return s;
   }
 }
 
