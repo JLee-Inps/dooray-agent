@@ -726,8 +726,9 @@ function redirectLocation(response: Response): string {
  * 판정 규칙(보수적 — 기능 안 깨지게):
  * 1. `location` 을 `new URL(location, baseUrl)` 로 파싱(상대 경로 resolve).
  *    baseUrl 도 `new URL(baseUrl)` 로 파싱. 실패 시 false.
- * 2. hostname 이 정확히 같으면 true.
- * 3. 두 hostname 의 마지막 2개 라벨(등록가능 도메인 근사)이 같으면 true.
+ * 2. 프로토콜 다운그레이드 게이트: base 가 https 면 location 도 https 여야 한다(아래 참고).
+ * 3. hostname 이 정확히 같으면 true.
+ * 4. 두 hostname 의 마지막 2개 라벨(등록가능 도메인 근사)이 같으면 true.
  *    예: api.dooray.com vs files.dooray.com → dooray.com 공유 → true.
  *
  * 한계(다중 라벨 TLD):
@@ -738,14 +739,23 @@ function redirectLocation(response: Response): string {
  * - 공개 접미사 목록(PSL) 없이는 정확한 판정 불가 — 의도적 단순화.
  */
 export function sameAuthScope(baseUrl: string, location: string): boolean {
-  let baseHostname: string;
-  let locHostname: string;
+  let baseUrlParsed: URL;
+  let locParsed: URL;
   try {
-    baseHostname = new URL(baseUrl).hostname;
-    locHostname = new URL(location, baseUrl).hostname;
+    baseUrlParsed = new URL(baseUrl);
+    locParsed = new URL(location, baseUrl);
   } catch {
     return false;
   }
+  // 프로토콜 다운그레이드 방어: base 가 https 면 location 도 https 여야 same-scope.
+  // https→http 평문 강등 시 Authorization(dooray-api 토큰) 재부착 = 평문 유출.
+  // 302/307 downgrade 공격 차단. 동일 프로토콜·http→https 업그레이드는 허용
+  // (상대 Location 은 base 프로토콜 상속 → base=https 면 https 로 통과).
+  if (baseUrlParsed.protocol === "https:" && locParsed.protocol !== "https:") {
+    return false;
+  }
+  const baseHostname = baseUrlParsed.hostname;
+  const locHostname = locParsed.hostname;
   if (baseHostname === locHostname) return true;
   // 마지막 2개 라벨 비교(등록가능 도메인 근사)
   const baseLabels = baseHostname.split(".");

@@ -34,4 +34,24 @@ describe("sameAuthScope", () => {
       false,
     );
   });
+
+  it("동일 host https→http 강등 → false (핵심 회귀 — 프로토콜 다운그레이드 차단)", () => {
+    expect(sameAuthScope(BASE, "http://api.dooray.com/x")).toBe(false);
+  });
+
+  it("서브도메인 https→http 강등 → false (프로토콜 게이트가 hostname 근사보다 앞섬)", () => {
+    expect(sameAuthScope(BASE, "http://files.dooray.com/x")).toBe(false);
+  });
+
+  it("base=http, location=https → true (http→https 업그레이드 허용)", () => {
+    expect(
+      sameAuthScope("http://api.dooray.com", "https://api.dooray.com/x"),
+    ).toBe(true);
+  });
+
+  it("base=http, location=http → true (동일 프로토콜)", () => {
+    expect(
+      sameAuthScope("http://api.dooray.com", "http://api.dooray.com/x"),
+    ).toBe(true);
+  });
 });
