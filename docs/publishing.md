@@ -17,13 +17,28 @@
 
 ```bash
 node_modules/.bin/tsc --noEmit        # 타입 clean
-node_modules/.bin/vitest run          # 196+ green
+node_modules/.bin/vitest run          # 244 tests (243 + 1 known-limitation xfail)
 node_modules/.bin/eslint .            # lint clean
 node_modules/.bin/tsup                # dist 최신 빌드
 npm pack --dry-run                    # tarball 내용·크기 확인 (.map 없어야, dist/*.js 있어야)
 ```
 
 `npm pack --dry-run` 기대치: 6 파일(LICENSE·README·dist/cli.js·dist/mcp.js·package.json·skills/dooray-agent/SKILL.md), `.map` 없음.
+
+### tarball 설치 스모크 (배포 직전 권장 — "남이 설치하면 되는가")
+
+실제 tarball 을 격리 디렉터리에 설치해 bin·의존성·ESM 이 정상 동작하는지 확인한다(publish 없이):
+
+```bash
+npm run build && TARBALL=$(npm pack)                 # dooray-agent-<ver>.tgz
+D=$(mktemp -d) && cd "$D" && npm init -y >/dev/null
+npm install "$OLDPWD/$TARBALL"                        # deps 포함 실제 설치
+HOME=$(mktemp -d) node_modules/.bin/dra --help        # CLI 부팅
+HOME=$(mktemp -d) node_modules/.bin/dra whoami --json # → code:4 (미설정, 크래시 아님)
+node_modules/.bin/dooray-agent-mcp                    # stdio MCP — initialize/tools/list 로 27툴 확인
+```
+
+기대: bin 3개(`dra`·`dooray-agent`·`dooray-agent-mcp`) 링크, 런타임 deps(ky·commander·chalk·imapflow·nodemailer·mailparser·@modelcontextprotocol/sdk) 설치, CLI/MCP 정상 부팅. (2026-07-07 검증 완료.)
 
 ## 배포
 
